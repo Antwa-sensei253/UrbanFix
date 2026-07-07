@@ -122,7 +122,8 @@ public class SlaEscalationWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[SlaEscalationWorker] Error during escalation check.");
+                Console.WriteLine($"[SlaEscalationWorker] REAL EXCEPTION: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
             }
 
             await Task.Delay(TimeSpan.FromMinutes(10), stoppingToken);

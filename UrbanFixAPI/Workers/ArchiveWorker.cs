@@ -45,7 +45,8 @@ public class ArchiveWorker : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[ArchiveWorker] Error during archiving.");
+                Console.WriteLine($"[ArchiveWorker] REAL EXCEPTION: {ex.Message}");
+                Console.WriteLine(ex.StackTrace);
             }
 
             // Wait 15 minutes before next sweep

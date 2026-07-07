@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\Antwa\\Desktop\\file\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj": {}
+    "C:\\Users\\Antwa\\Documents\\Projects\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj": {}
   },
   "projects": {
-    "C:\\Users\\Antwa\\Desktop\\file\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj": {
+    "C:\\Users\\Antwa\\Documents\\Projects\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\Antwa\\Desktop\\file\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj",
+        "projectUniqueName": "C:\\Users\\Antwa\\Documents\\Projects\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj",
         "projectName": "UrbanFixAPI",
-        "projectPath": "C:\\Users\\Antwa\\Desktop\\file\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj",
+        "projectPath": "C:\\Users\\Antwa\\Documents\\Projects\\UrbanFix\\UrbanFixAPI\\UrbanFixAPI.csproj",
         "packagesPath": "C:\\Users\\Antwa\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\Antwa\\Desktop\\file\\UrbanFix\\UrbanFixAPI\\obj\\",
+        "outputPath": "C:\\Users\\Antwa\\Documents\\Projects\\UrbanFix\\UrbanFixAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -26,11 +26,11 @@
         ],
         "sources": {
           "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
-          "C:\\Program Files\\dotnet\\library-packs": {},
           "https://api.nuget.org/v3/index.json": {}
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {}
           }
@@ -45,10 +45,11 @@
           "auditLevel": "low",
           "auditMode": "all"
         },
-        "SdkAnalysisLevel": "10.0.200"
+        "SdkAnalysisLevel": "10.0.300"
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
             "BCrypt.Net-Next": {
@@ -103,7 +104,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.202/PortableRuntimeIdentifierGraph.json",
+          "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.301/PortableRuntimeIdentifierGraph.json",
           "packagesToPrune": {
             "Microsoft.AspNetCore": "(,10.0.32767]",
             "Microsoft.AspNetCore.Antiforgery": "(,10.0.32767]",
