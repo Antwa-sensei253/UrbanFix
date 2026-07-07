@@ -1,65 +1,524 @@
-import * as React from "react";
-import en from "@/locales/en";
-import ar from "@/locales/ar";
-import type { Translations } from "@/locales/en";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
-type Lang = "en" | "ar";
+export type Lang = "en" | "ar";
 
-interface LangContextValue {
+const STORAGE_KEY = "urbanfix-lang";
+
+const DICT = {
+  en: {
+    "nav.switchRole": "Switch role",
+    "nav.citizen": "Citizen",
+    "nav.technician": "Technician",
+    "nav.manager": "Manager",
+    "nav.governor": "Governor",
+    "nav.settings": "Settings",
+    "nav.help": "Help & docs",
+    "nav.collapse": "Collapse",
+    "nav.profile": "Profile",
+    "nav.signOut": "Sign out",
+    // Public nav
+    "nav_community_map": "Community map",
+    "nav_how_it_works": "How it works",
+    "nav_for_cities": "For cities",
+    "nav_sign_in": "Sign in",
+    "nav_get_started": "Get started",
+    // Hero
+    "hero_badge": "UrbanFix — Your direct line to city services",
+    "hero_headline_1": "Your city,",
+    "hero_headline_2": "fixed faster.",
+    "hero_sub": "Report potholes, broken streetlights, graffiti, and more in seconds. Track each repair from pin to fix — with full transparency.",
+    "hero_cta_report": "Report an issue",
+    "hero_cta_signin": "Sign in",
+    "hero_disclaimer": "No app required. Free for residents.",
+    // Stats
+    "stat_1_val": "Real-time",
+    "stat_1_lbl": "Issue tracking",
+    "stat_2_val": "Direct",
+    "stat_2_lbl": "City communication",
+    "stat_3_val": "Community",
+    "stat_3_lbl": "Driven impact",
+    "stat_4_val": "Fast",
+    "stat_4_lbl": "Resolution targets",
+    // Features
+    "features_title": "Built for transparency",
+    "features_sub": "From the moment you report, to the moment it's fixed.",
+    // CTA
+    "cta_headline": "Ready to make your neighbourhood better?",
+    "cta_sub": "Join residents already reporting issues and holding their city accountable.",
+    "cta_btn": "Get started — it's free",
+    // Login
+    "login_title": "Welcome back",
+    "login_sub": "Sign in with your National ID to continue.",
+    "login_national_id": "National ID",
+    "login_password": "Password",
+    "login_forgot": "Forgot password?",
+    "login_btn": "Sign in",
+    "login_no_account": "Don't have an account?",
+    "login_create": "Create one",
+    "login_demo_title": "Demo Accounts (Password: Pass123)",
+    // Common
+    "common.search": "Search",
+    "common.newReport": "New report",
+    "common.signIn": "Sign in",
+    "common.cancel": "Cancel",
+    "common.save": "Save",
+    "common.delete": "Delete",
+    "common.refresh": "Refresh",
+    "common.noData": "No data available",
+    "common.loading": "Loading…",
+    "reports.myReports": "My Reports",
+    "reports.community": "Community Feed",
+    "reports.welcome": "Welcome back",
+    "reports.empty.title": "No reports yet",
+    "reports.empty.body": "Issues you submit will appear here. Spot something? File your first report.",
+    "sla.overdue": "Overdue",
+    "sla.dueIn": "Due in",
+    "notifications.title": "Notifications",
+    "notifications.markAll": "Mark all as read",
+    "notifications.empty": "You're all caught up",
+    "notifications.emptyBody": "We'll let you know when something needs your attention.",
+    "technician.board": "My board",
+    "governor.overview": "Overview",
+    "governor.allReports": "All reports",
+    "governor.heatmap": "City heatmap",
+    "governor.users": "Manage users",
+    "governor.districts": "Manage districts",
+    "governor.categories": "Manage categories",
+    "governor.dateRange": "Date range",
+    "governor.search": "Search reports…",
+    "manager.workspace": "District Manager Workspace",
+    // How it works
+    "hiw_badge": "How UrbanFix works",
+    "hiw_headline_1": "From a pin on your block",
+    "hiw_headline_2": "to a fix on the ground.",
+    "hiw_sub": "A transparent, closed-loop workflow that connects citizens, district managers, and technicians — with SLAs everyone can see.",
+    "hiw_step": "Step",
+    "hiw_perks_title": "What makes it different",
+    "hiw_cta_headline": "Ready to report your first issue?",
+    "hiw_cta_sub": "It takes 30 seconds. And it works — because every step is measured.",
+    "hiw_cta_btn": "Report an issue",
+    "hiw_cta_secondary": "For city teams",
+    // For cities
+    "fc_badge": "For municipal teams",
+    "fc_headline_1": "The operating system for",
+    "fc_headline_2": "civic repair.",
+    "fc_sub": "Give district managers, technicians, and leadership one accountable workflow — with dashboards, SLAs, and API access your existing stack already understands.",
+    "fc_cta_primary": "Talk to sales",
+    "fc_cta_secondary": "See how it works",
+    "fc_capabilities_title": "Everything your team needs. Nothing they don't.",
+    "fc_capabilities_sub": "One product, four surfaces — each tuned to the job.",
+    "fc_compliance_title": "Built for the way cities actually work.",
+    "fc_compliance_sub": "Procurement-ready, audit-friendly, and modular enough to slot beside the systems your teams already use.",
+    "fc_cta_headline": "Bring UrbanFix to your city.",
+    "fc_cta_sub": "Pilot a single district in weeks — not quarters. We handle the rollout playbook.",
+    "fc_cta_start": "Start a pilot",
+    "fc_cta_map": "See a live map",
+    // Register
+    "reg_title": "Create your account",
+    "reg_sub": "Verified by your National ID. One account per resident.",
+    "reg_already": "Already a member?",
+    "reg_signin": "Sign in",
+    "reg_fullname": "Full name",
+    "reg_email": "Email",
+    "reg_nationalid": "National ID",
+    "reg_role": "Role",
+    "reg_district": "District",
+    "reg_password": "Password",
+    "reg_confirm": "Confirm password",
+    "reg_btn": "Create account",
+    "reg_terms": "By continuing you agree to our",
+    "reg_terms_link": "Terms",
+    "reg_privacy_link": "Privacy Policy",
+    // Footer
+    "footer_tagline": "The modern civic reporting platform. Built so cities and citizens can fix things, together.",
+    "footer_product": "Product",
+    "footer_company": "Company",
+    "footer_legal": "Legal",
+    "footer_about": "About",
+    "footer_careers": "Careers",
+    "footer_contact": "Contact",
+    "footer_privacy": "Privacy",
+    "footer_terms": "Terms",
+    "footer_rights": "All rights reserved.",
+    // For Cities Outcomes
+    "outcomes_time": "Avg. resolution time",
+    "outcomes_sat": "Citizen satisfaction",
+    "outcomes_sla": "SLA compliance uplift",
+    "outcomes_onboarding": "Onboarding for a district",
+    // For Cities Compliance
+    "comp_1": "SOC 2 Type II & GDPR-ready",
+    "comp_2": "SSO / SAML for staff accounts",
+    "comp_3": "Fine-grained audit logs",
+    "comp_4": "Data residency options",
+    "comp_5": "SLA reporting for council review",
+    "comp_6": "Sandbox environment for pilots",
+    // For Cities Capabilities
+    "cap_1_t": "Governor dashboard",
+    "cap_1_d": "City-wide KPIs, SLA compliance, trend charts, and hotspots — refreshed live.",
+    "cap_2_t": "District workspace",
+    "cap_2_d": "Managers triage, verify, and assign in a split-view map + queue.",
+    "cap_3_t": "Technician kanban",
+    "cap_3_d": "Field crews work a clean Assigned → In Progress → Resolved board.",
+    "cap_4_t": "Role-based access",
+    "cap_4_d": "Citizen, technician, district manager, governor — least-privilege by default.",
+    "cap_5_t": "Reports & exports",
+    "cap_5_d": "Slice by district, category, or urgency. CSV for council meetings.",
+    "cap_6_t": "Open API",
+    "cap_6_d": "Push into your existing 311, GIS, or CMMS system with signed webhooks.",
+    // Index Features
+    "feat_title": "Built for citizens. Loved by city hall.",
+    "feat_sub": "A clean, accountable workflow — from the moment you spot an issue to the moment it's resolved.",
+    "feat_1_t": "Report in 30 seconds",
+    "feat_1_d": "Drop a pin, snap a photo, pick a category. That's it.",
+    "feat_2_t": "SLA-backed responses",
+    "feat_2_d": "Every report has a service-level deadline. Cities are held accountable.",
+    "feat_3_t": "Live status updates",
+    "feat_3_d": "Track each report from received → in progress → resolved.",
+    "feat_4_t": "Community map",
+    "feat_4_d": "See what's happening on your block. Upvote reports that matter.",
+    "feat_5_t": "Verified citizens",
+    "feat_5_d": "Phone-verified accounts keep noise out. Real reports, real impact.",
+    "feat_6_t": "Closed-loop proof",
+    "feat_6_d": "Receive a photo when a fix is complete. No black-box bureaucracy.",
+    // Index CTA
+    "cta_title": "See something broken? Fix it in 30 seconds.",
+    "cta_sub": "Join thousands of neighbors keeping their streets safe, clean, and working.",
+    "cta_btn_1": "Create free account",
+    "cta_btn_2": "Browse reports",
+    // Governor
+    "gov_title": "Governor",
+    "gov_refresh": "Refresh",
+    "gov_tab_overview": "Overview",
+    "gov_tab_reports": "All reports",
+    "gov_tab_users": "Manage users",
+    "gov_tab_districts": "Manage districts",
+    "gov_tab_categories": "Manage categories",
+    "gov_overview_city": "City overview",
+    "gov_kpi_open": "Total open",
+    "gov_kpi_resolved": "Resolved",
+    "gov_kpi_progress": "In progress",
+    "gov_kpi_critical": "Critical",
+    "gov_kpi_avg": "Avg resolution",
+    // Technician
+    "tech_title": "My board",
+    "tech_search": "Search tickets…",
+    "tech_kpi_open": "open",
+    "tech_kpi_inprogress": "in progress",
+    "tech_kpi_breached": "SLA breached",
+    "tech_col_Assigned": "Assigned",
+    "tech_col_InProgress": "In Progress",
+    "tech_col_Blocked": "Blocked",
+    "tech_col_Resolved": "Resolved",
+    "tech_pri_Critical": "Critical",
+    "tech_pri_High": "High",
+    "tech_pri_Medium": "Medium",
+    "tech_pri_Low": "Low",
+    "tech_empty": "No tickets",
+    "tech_left": "left",
+    "tech_overdue": "overdue",
+    "tech_view_map": "View on map",
+    "tech_start_work": "Start work",
+    "tech_mark_res": "Mark resolved",
+    "tech_mark_blk": "Mark blocked",
+    "tech_closed": "Closed",
+    "cat_Pothole": "Pothole",
+    "cat_Streetlight": "Streetlight",
+    "cat_Graffiti": "Graffiti",
+    "cat_Trash / Debris": "Trash / Debris",
+    "cat_Fallen tree": "Fallen tree",
+    "cat_Damaged signage": "Damaged signage",
+    "cat_Water leak": "Water leak",
+    "cat_Water Leak": "Water Leak",
+    "cat_Dirty Street": "Dirty Street",
+    "cat_Other": "Other",
+  },
+  ar: {
+    "nav.switchRole": "تبديل الدور",
+    "nav.citizen": "مواطن",
+    "nav.technician": "فني",
+    "nav.manager": "مدير المنطقة",
+    "nav.governor": "محافظ",
+    "nav.settings": "الإعدادات",
+    "nav.help": "المساعدة",
+    "nav.collapse": "طي",
+    "nav.profile": "الملف الشخصي",
+    "nav.signOut": "تسجيل الخروج",
+    // Public nav
+    "nav_community_map": "خريطة المجتمع",
+    "nav_how_it_works": "كيف يعمل؟",
+    "nav_for_cities": "للمدن",
+    "nav_sign_in": "تسجيل الدخول",
+    "nav_get_started": "ابدأ الآن",
+    // Hero
+    "hero_badge": "UrbanFix — خطك المباشر مع خدمات المدينة",
+    "hero_headline_1": "مدينتك،",
+    "hero_headline_2": "تُصلح أسرع.",
+    "hero_sub": "أبلغ عن الحفر والأضواء المكسورة والجرافيتي وأكثر في ثوانٍ. تابع كل إصلاح من لحظة التبليغ حتى الحل — بشفافية كاملة.",
+    "hero_cta_report": "أبلغ عن مشكلة",
+    "hero_cta_signin": "تسجيل الدخول",
+    "hero_disclaimer": "لا يحتاج تطبيقاً. مجاني للسكان.",
+    // Stats
+    "stat_1_val": "آني",
+    "stat_1_lbl": "متابعة المشكلات",
+    "stat_2_val": "مباشر",
+    "stat_2_lbl": "التواصل مع المدينة",
+    "stat_3_val": "مجتمعي",
+    "stat_3_lbl": "أثر مشترك",
+    "stat_4_val": "سريع",
+    "stat_4_lbl": "أهداف الحل",
+    // Features
+    "features_title": "مبني على الشفافية",
+    "features_sub": "من لحظة التبليغ حتى لحظة الإصلاح.",
+    // CTA
+    "cta_headline": "هل أنت مستعد لجعل حيّك أفضل؟",
+    "cta_sub": "انضم لسكان يبلغون عن المشكلات ويحاسبون مدينتهم.",
+    "cta_btn": "ابدأ — مجاناً",
+    // Login
+    "login_title": "مرحباً بعودتك",
+    "login_sub": "سجّل دخولك برقمك القومي للمتابعة.",
+    "login_national_id": "الرقم القومي",
+    "login_password": "كلمة المرور",
+    "login_forgot": "نسيت كلمة المرور؟",
+    "login_btn": "تسجيل الدخول",
+    "login_no_account": "ليس لديك حساب؟",
+    "login_create": "أنشئ حساباً",
+    "login_demo_title": "حسابات تجريبية (كلمة المرور: Pass123)",
+    // Common
+    "common.search": "بحث",
+    "common.newReport": "بلاغ جديد",
+    "common.signIn": "تسجيل الدخول",
+    "common.cancel": "إلغاء",
+    "common.save": "حفظ",
+    "common.delete": "حذف",
+    "common.refresh": "تحديث",
+    "common.noData": "لا توجد بيانات",
+    "common.loading": "جارٍ التحميل…",
+    "reports.myReports": "بلاغاتي",
+    "reports.community": "بلاغات المجتمع",
+    "reports.welcome": "مرحباً بعودتك",
+    "reports.empty.title": "لا توجد بلاغات بعد",
+    "reports.empty.body": "ستظهر هنا البلاغات التي ترسلها. هل لاحظت شيئاً؟ سجّل أول بلاغ لك.",
+    "sla.overdue": "متأخر",
+    "sla.dueIn": "المتبقي",
+    "notifications.title": "الإشعارات",
+    "notifications.markAll": "تعليم الكل كمقروء",
+    "notifications.empty": "لا يوجد جديد",
+    "notifications.emptyBody": "سننبهك عند وجود ما يستدعي انتباهك.",
+    "technician.board": "لوحتي",
+    "governor.overview": "نظرة عامة",
+    "governor.allReports": "كل البلاغات",
+    "governor.heatmap": "خريطة المدينة",
+    "governor.users": "إدارة المستخدمين",
+    "governor.districts": "إدارة المناطق",
+    "governor.categories": "إدارة الفئات",
+    "governor.dateRange": "النطاق الزمني",
+    "governor.search": "ابحث في البلاغات…",
+    "manager.workspace": "مساحة عمل مدير المنطقة",
+    // How it works
+    "hiw_badge": "كيف يعمل UrbanFix",
+    "hiw_headline_1": "من دبوس في حيّك",
+    "hiw_headline_2": "إلى إصلاح على أرض الواقع.",
+    "hiw_sub": "سير عمل شفاف ومغلق يربط المواطنين ومديري المناطق والفنيين — مع مستويات خدمة يراها الجميع.",
+    "hiw_step": "خطوة",
+    "hiw_perks_title": "ما الذي يجعله مختلفاً",
+    "hiw_cta_headline": "هل أنت مستعد لتسجيل أول بلاغ؟",
+    "hiw_cta_sub": "يستغرق 30 ثانية. ويعمل — لأن كل خطوة تُقاس.",
+    "hiw_cta_btn": "أبلغ عن مشكلة",
+    "hiw_cta_secondary": "لفرق المدينة",
+    // For cities
+    "fc_badge": "للفرق البلدية",
+    "fc_headline_1": "نظام التشغيل",
+    "fc_headline_2": "للإصلاح المدني.",
+    "fc_sub": "أعطِ مديري المناطق والفنيين والقيادة سير عمل واحداً محاسبياً — مع لوحات معلومات ومستويات خدمة ووصول API يفهمه نظامك الحالي.",
+    "fc_cta_primary": "تحدث مع المبيعات",
+    "fc_cta_secondary": "اكتشف كيف يعمل",
+    "fc_capabilities_title": "كل ما يحتاجه فريقك. لا شيء زائد.",
+    "fc_capabilities_sub": "منتج واحد، أربعة واجهات — كل منها مُصمَّم للمهمة.",
+    "fc_compliance_title": "مبني على الطريقة التي تعمل بها المدن فعلاً.",
+    "fc_compliance_sub": "جاهز للمشتريات، مناسب للتدقيق، ومرن بما يكفي للتكامل مع أنظمتك الحالية.",
+    "fc_cta_headline": "أحضر UrbanFix إلى مدينتك.",
+    "fc_cta_sub": "اختبر منطقة واحدة في أسابيع — لا أرباع. نحن نتولى خطة الإطلاق.",
+    "fc_cta_start": "ابدأ تجربة",
+    "fc_cta_map": "شاهد الخريطة المباشرة",
+    // Register
+    "reg_title": "أنشئ حسابك",
+    "reg_sub": "موثّق برقمك القومي. حساب واحد لكل مقيم.",
+    "reg_already": "عضو بالفعل؟",
+    "reg_signin": "تسجيل الدخول",
+    "reg_fullname": "الاسم الكامل",
+    "reg_email": "البريد الإلكتروني",
+    "reg_nationalid": "الرقم القومي",
+    "reg_role": "الدور",
+    "reg_district": "المنطقة",
+    "reg_password": "كلمة المرور",
+    "reg_confirm": "تأكيد كلمة المرور",
+    "reg_btn": "إنشاء حساب",
+    "reg_terms": "بالمتابعة توافق على",
+    "reg_terms_link": "الشروط",
+    "reg_privacy_link": "سياسة الخصوصية",
+    // Footer
+    "footer_tagline": "منصة الإبلاغ المدني الحديثة. مبنية حتى تستطيع المدن والمواطنون إصلاح الأشياء، معاً.",
+    "footer_product": "المنتج",
+    "footer_company": "الشركة",
+    "footer_legal": "قانوني",
+    "footer_about": "عن الشركة",
+    "footer_careers": "وظائف",
+    "footer_contact": "تواصل معنا",
+    "footer_privacy": "الخصوصية",
+    "footer_terms": "الشروط",
+    "footer_rights": "جميع الحقوق محفوظة.",
+    // For Cities Outcomes
+    "outcomes_time": "متوسط وقت الحل",
+    "outcomes_sat": "رضا المواطنين",
+    "outcomes_sla": "تحسن الامتثال لمستوى الخدمة",
+    "outcomes_onboarding": "مدة تجهيز المنطقة",
+    // For Cities Compliance
+    "comp_1": "متوافق مع SOC 2 Type II وجاهز لـ GDPR",
+    "comp_2": "تسجيل الدخول الموحد (SSO / SAML) لحسابات الموظفين",
+    "comp_3": "سجلات تدقيق دقيقة",
+    "comp_4": "خيارات تخزين البيانات محلياً",
+    "comp_5": "تقارير مستوى الخدمة (SLA) لمراجعة المجلس",
+    "comp_6": "بيئة تجريبية (Sandbox) للمشاريع الرائدة",
+    // For Cities Capabilities
+    "cap_1_t": "لوحة تحكم المحافظ",
+    "cap_1_d": "مؤشرات الأداء على مستوى المدينة، الامتثال لمستوى الخدمة، المخططات، والمناطق النشطة — تتحدث مباشرة.",
+    "cap_2_t": "مساحة عمل المنطقة",
+    "cap_2_d": "يقوم المديرون بفرز البلاغات، والتحقق منها، وتعيينها في عرض مزدوج (خريطة + قائمة).",
+    "cap_3_t": "لوحة مهام الفني (كانبان)",
+    "cap_3_d": "تعمل الفرق الميدانية على لوحة منظمة: مُعيّن ← قيد التنفيذ ← تم الحل.",
+    "cap_4_t": "وصول مبني على الأدوار",
+    "cap_4_d": "مواطن، فني، مدير منطقة، محافظ — بأقل الصلاحيات المطلوبة افتراضياً.",
+    "cap_5_t": "تقارير وتصدير البيانات",
+    "cap_5_d": "تفصيل حسب المنطقة، الفئة، أو الأهمية. تصدير لـ CSV لاجتماعات المجلس.",
+    "cap_6_t": "واجهة برمجة تطبيقات مفتوحة (Open API)",
+    "cap_6_d": "دمج مع أنظمة 311، GIS، أو CMMS الحالية باستخدام خطافات ويب (Webhooks) آمنة.",
+    // Index Features
+    "feat_title": "مبني للمواطنين. مفضل لدى البلدية.",
+    "feat_sub": "سير عمل واضح ومسؤول — من لحظة اكتشاف المشكلة حتى حلها.",
+    "feat_1_t": "أبلغ في 30 ثانية",
+    "feat_1_d": "ضع دبوساً، التقط صورة، اختر فئة. هذا كل شيء.",
+    "feat_2_t": "استجابات مدعومة بمستوى الخدمة",
+    "feat_2_d": "لكل بلاغ موعد نهائي. المدن تُحاسب.",
+    "feat_3_t": "تحديثات الحالة مباشرة",
+    "feat_3_d": "تتبع كل بلاغ من الاستلام ← قيد التنفيذ ← تم الحل.",
+    "feat_4_t": "خريطة المجتمع",
+    "feat_4_d": "شاهد ما يحدث في حيك. صوّت للبلاغات المهمة.",
+    "feat_5_t": "مواطنون موثقون",
+    "feat_5_d": "حسابات موثقة بالهاتف تمنع الإزعاج. بلاغات حقيقية، أثر حقيقي.",
+    "feat_6_t": "إثبات التنفيذ",
+    "feat_6_d": "استلم صورة عند إتمام الإصلاح. لا بيروقراطية مبهمة.",
+    // Index CTA
+    "cta_title": "رأيت شيئاً مكسوراً؟ أصلحه في 30 ثانية.",
+    "cta_sub": "انضم لآلاف الجيران الذين يحافظون على شوارعهم آمنة ونظيفة.",
+    "cta_btn_1": "إنشاء حساب مجاني",
+    "cta_btn_2": "تصفح البلاغات",
+    // Governor
+    "gov_title": "المحافظ",
+    "gov_refresh": "تحديث",
+    "gov_tab_overview": "نظرة عامة",
+    "gov_tab_reports": "جميع البلاغات",
+    "gov_tab_users": "إدارة المستخدمين",
+    "gov_tab_districts": "إدارة المناطق",
+    "gov_tab_categories": "إدارة الفئات",
+    "gov_overview_city": "نظرة عامة على المدينة",
+    "gov_kpi_open": "إجمالي المفتوح",
+    "gov_kpi_resolved": "تم الحل",
+    "gov_kpi_progress": "قيد التنفيذ",
+    "gov_kpi_critical": "حرج",
+    "gov_kpi_avg": "متوسط وقت الحل",
+    // Technician
+    "tech_title": "لوحتي",
+    "tech_search": "البحث عن تذاكر...",
+    "tech_kpi_open": "مفتوح",
+    "tech_kpi_inprogress": "قيد التنفيذ",
+    "tech_kpi_breached": "تجاوز مستوى الخدمة",
+    "tech_col_Assigned": "مُعيّن",
+    "tech_col_InProgress": "قيد التنفيذ",
+    "tech_col_Blocked": "محظور",
+    "tech_col_Resolved": "تم الحل",
+    "tech_pri_Critical": "حرج",
+    "tech_pri_High": "عالٍ",
+    "tech_pri_Medium": "متوسط",
+    "tech_pri_Low": "منخفض",
+    "tech_empty": "لا توجد تذاكر",
+    "tech_left": "متبقي",
+    "tech_overdue": "متأخر",
+    "tech_view_map": "عرض على الخريطة",
+    "tech_start_work": "بدء العمل",
+    "tech_mark_res": "تعيين كمحلول",
+    "tech_mark_blk": "تعيين كمحظور",
+    "tech_closed": "مغلق",
+    "cat_Pothole": "حفرة",
+    "cat_Streetlight": "عمود إنارة",
+    "cat_Graffiti": "كتابات على الجدران",
+    "cat_Trash / Debris": "قمامة / أنقاض",
+    "cat_Fallen tree": "شجرة ساقطة",
+    "cat_Damaged signage": "لوحة إرشادية تالفة",
+    "cat_Water leak": "تسرب مياه",
+    "cat_Water Leak": "تسرب مياه",
+    "cat_Dirty Street": "شارع قذر",
+    "cat_Other": "أخرى",
+  },
+} as const;
+
+
+export type TranslationKey = keyof typeof DICT["en"];
+
+interface I18nState {
   lang: Lang;
-  t: Translations;
   setLang: (l: Lang) => void;
+  toggle: () => void;
+  t: (key: TranslationKey) => string;
   dir: "ltr" | "rtl";
 }
 
-const LangContext = React.createContext<LangContextValue>({
-  lang: "en",
-  t: en,
-  setLang: () => {},
-  dir: "ltr",
-});
+const I18nContext = createContext<I18nState | undefined>(undefined);
 
-const LOCALES: Record<Lang, Translations> = { en, ar };
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [lang, setLangState] = useState<Lang>("en");
 
-export function LangProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLangState] = React.useState<Lang>(() => {
-    if (typeof localStorage !== "undefined") {
-      const stored = localStorage.getItem("lang") as Lang | null;
-      if (stored === "ar" || stored === "en") return stored;
-    }
-    return "en";
-  });
-
-  const setLang = React.useCallback((l: Lang) => {
-    setLangState(l);
-    if (typeof localStorage !== "undefined") localStorage.setItem("lang", l);
+  // Hydrate from localStorage on mount (avoid SSR mismatch).
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem(STORAGE_KEY) as Lang | null;
+    if (saved === "ar" || saved === "en") setLangState(saved);
   }, []);
 
-  const dir: "ltr" | "rtl" = lang === "ar" ? "rtl" : "ltr";
-
-  // Apply dir and lang to <html> element
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof document === "undefined") return;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = lang;
-    document.documentElement.dir = dir;
-    if (lang === "ar") {
-      document.body.style.fontFamily = "'Cairo', 'Segoe UI', sans-serif";
-    } else {
-      document.body.style.fontFamily = "";
-    }
-  }, [lang, dir]);
+    localStorage.setItem(STORAGE_KEY, lang);
+  }, [lang]);
 
-  return (
-    <LangContext.Provider value={{ lang, t: LOCALES[lang], setLang, dir }}>
-      {children}
-    </LangContext.Provider>
+  const setLang = useCallback((l: Lang) => setLangState(l), []);
+  const toggle = useCallback(
+    () => setLangState((l) => (l === "en" ? "ar" : "en")),
+    [],
   );
+  const t = useCallback(
+    (key: TranslationKey) => DICT[lang][key] ?? DICT.en[key] ?? key,
+    [lang],
+  );
+
+  const value = useMemo<I18nState>(
+    () => ({ lang, setLang, toggle, t, dir: lang === "ar" ? "rtl" : "ltr" }),
+    [lang, setLang, toggle, t],
+  );
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
-export function useLang() {
-  return React.useContext(LangContext);
-}
-
-export function useT() {
-  return React.useContext(LangContext).t;
+export function useI18n(): I18nState {
+  const ctx = useContext(I18nContext);
+  if (!ctx) throw new Error("useI18n must be used inside <I18nProvider>");
+  return ctx;
 }

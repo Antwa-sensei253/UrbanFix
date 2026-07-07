@@ -9,17 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyOtpRouteImport } from './routes/verify-otp'
 import { Route as TechnicianRouteImport } from './routes/technician'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ManagerRouteImport } from './routes/manager'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as HowItWorksRouteImport } from './routes/how-it-works'
 import { Route as GovernorRouteImport } from './routes/governor'
-import { Route as CitizenRouteImport } from './routes/citizen'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as ForCitiesRouteImport } from './routes/for-cities'
 import { Route as IndexRouteImport } from './routes/index'
 
+const VerifyOtpRoute = VerifyOtpRouteImport.update({
+  id: '/verify-otp',
+  path: '/verify-otp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TechnicianRoute = TechnicianRouteImport.update({
   id: '/technician',
   path: '/technician',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -37,14 +51,24 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HowItWorksRoute = HowItWorksRouteImport.update({
+  id: '/how-it-works',
+  path: '/how-it-works',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GovernorRoute = GovernorRouteImport.update({
   id: '/governor',
   path: '/governor',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CitizenRoute = CitizenRouteImport.update({
-  id: '/citizen',
-  path: '/citizen',
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForCitiesRoute = ForCitiesRouteImport.update({
+  id: '/for-cities',
+  path: '/for-cities',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -55,79 +79,121 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/citizen': typeof CitizenRoute
+  '/for-cities': typeof ForCitiesRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/governor': typeof GovernorRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/login': typeof LoginRoute
   '/manager': typeof ManagerRoute
   '/register': typeof RegisterRoute
+  '/reports': typeof ReportsRoute
   '/technician': typeof TechnicianRoute
+  '/verify-otp': typeof VerifyOtpRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/citizen': typeof CitizenRoute
+  '/for-cities': typeof ForCitiesRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/governor': typeof GovernorRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/login': typeof LoginRoute
   '/manager': typeof ManagerRoute
   '/register': typeof RegisterRoute
+  '/reports': typeof ReportsRoute
   '/technician': typeof TechnicianRoute
+  '/verify-otp': typeof VerifyOtpRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/citizen': typeof CitizenRoute
+  '/for-cities': typeof ForCitiesRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/governor': typeof GovernorRoute
+  '/how-it-works': typeof HowItWorksRoute
   '/login': typeof LoginRoute
   '/manager': typeof ManagerRoute
   '/register': typeof RegisterRoute
+  '/reports': typeof ReportsRoute
   '/technician': typeof TechnicianRoute
+  '/verify-otp': typeof VerifyOtpRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/citizen'
+    | '/for-cities'
+    | '/forgot-password'
     | '/governor'
+    | '/how-it-works'
     | '/login'
     | '/manager'
     | '/register'
+    | '/reports'
     | '/technician'
+    | '/verify-otp'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/citizen'
+    | '/for-cities'
+    | '/forgot-password'
     | '/governor'
+    | '/how-it-works'
     | '/login'
     | '/manager'
     | '/register'
+    | '/reports'
     | '/technician'
+    | '/verify-otp'
   id:
     | '__root__'
     | '/'
-    | '/citizen'
+    | '/for-cities'
+    | '/forgot-password'
     | '/governor'
+    | '/how-it-works'
     | '/login'
     | '/manager'
     | '/register'
+    | '/reports'
     | '/technician'
+    | '/verify-otp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CitizenRoute: typeof CitizenRoute
+  ForCitiesRoute: typeof ForCitiesRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   GovernorRoute: typeof GovernorRoute
+  HowItWorksRoute: typeof HowItWorksRoute
   LoginRoute: typeof LoginRoute
   ManagerRoute: typeof ManagerRoute
   RegisterRoute: typeof RegisterRoute
+  ReportsRoute: typeof ReportsRoute
   TechnicianRoute: typeof TechnicianRoute
+  VerifyOtpRoute: typeof VerifyOtpRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-otp': {
+      id: '/verify-otp'
+      path: '/verify-otp'
+      fullPath: '/verify-otp'
+      preLoaderRoute: typeof VerifyOtpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/technician': {
       id: '/technician'
       path: '/technician'
       fullPath: '/technician'
       preLoaderRoute: typeof TechnicianRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -151,6 +217,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/how-it-works': {
+      id: '/how-it-works'
+      path: '/how-it-works'
+      fullPath: '/how-it-works'
+      preLoaderRoute: typeof HowItWorksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/governor': {
       id: '/governor'
       path: '/governor'
@@ -158,11 +231,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GovernorRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/citizen': {
-      id: '/citizen'
-      path: '/citizen'
-      fullPath: '/citizen'
-      preLoaderRoute: typeof CitizenRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-cities': {
+      id: '/for-cities'
+      path: '/for-cities'
+      fullPath: '/for-cities'
+      preLoaderRoute: typeof ForCitiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -177,22 +257,27 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CitizenRoute: CitizenRoute,
+  ForCitiesRoute: ForCitiesRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   GovernorRoute: GovernorRoute,
+  HowItWorksRoute: HowItWorksRoute,
   LoginRoute: LoginRoute,
   ManagerRoute: ManagerRoute,
   RegisterRoute: RegisterRoute,
+  ReportsRoute: ReportsRoute,
   TechnicianRoute: TechnicianRoute,
+  VerifyOtpRoute: VerifyOtpRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }
