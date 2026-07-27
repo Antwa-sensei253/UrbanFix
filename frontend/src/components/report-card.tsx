@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Clock, Heart, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 } from "@/lib/reports-data";
 import type { ReportResponse } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n";
 
 type Tone = "muted" | "primary" | "warning" | "success" | "destructive";
 
@@ -45,7 +46,8 @@ export function StatusPill({
 }
 
 function SlaChip({ report }: { report: ReportResponse }) {
-  const chip = slaChip(report);
+  const { lang } = useI18n();
+  const chip = slaChip(report, lang);
   if (!chip) return null;
   const cls = chip.overdue
     ? "border-red-200 bg-red-50 text-red-700"
@@ -68,13 +70,32 @@ function SlaChip({ report }: { report: ReportResponse }) {
 export function MyReportCard({
   report,
   onDetails,
+  onUpvote,
 }: {
   report: ReportResponse;
-  onDetails: (r: ReportResponse) => void;
+  onDetails?: (r: ReportResponse) => void;
+  onUpvote?: (id: number) => void;
 }) {
-  const cat = categoryMeta(report.category);
-  const s = statusMeta(normalizeStatus(report.status));
-  const u = urgencyMeta(normalizeUrgency(report.urgency));
+  const { t, lang } = useI18n();
+  const cat = categoryMeta(report.category, lang);
+  const s = statusMeta(normalizeStatus(report.status), lang);
+  const u = urgencyMeta(normalizeUrgency(report.urgency), lang);
+  const [upvoted, setUpvoted] = useState(report.has_upvoted);
+  const [count, setCount] = useState(report.upvote_count);
+
+  useEffect(() => {
+    setUpvoted(report.has_upvoted);
+    setCount(report.upvote_count);
+  }, [report.has_upvoted, report.upvote_count]);
+
+  function toggle() {
+    setUpvoted((prev) => {
+      setCount((c) => c + (prev ? -1 : 1));
+      return !prev;
+    });
+    onUpvote?.(report.id);
+  }
+
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all hover:border-foreground/20 hover:shadow-elevated">
       <div className="relative aspect-[16/10] overflow-hidden bg-secondary">
@@ -113,15 +134,41 @@ export function MyReportCard({
           <MapPin className="size-3" />
           {report.address_description || `${report.latitude}, ${report.longitude}`}
         </p>
-        <div className="mt-auto pt-2">
+        <div className="mt-auto flex items-center justify-between gap-2.5 pt-3 border-t border-border/50">
           <Button
             size="sm"
             variant="outline"
-            className="w-full"
-            onClick={() => onDetails(report)}
+            className="h-8 flex-1 text-xs font-medium"
+            onClick={() => onDetails?.(report)}
           >
-            View details
+            {t("hub_view_details")}
           </Button>
+          {onUpvote && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggle();
+              }}
+              aria-pressed={upvoted}
+              title={upvoted ? t("hub_liked") : t("hub_like")}
+              className={cn(
+                "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all select-none active:scale-95",
+                upvoted
+                  ? "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-2xs"
+                  : "border-border bg-card text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground",
+              )}
+            >
+              <Heart
+                className={cn(
+                  "size-3.5 shrink-0 transition-transform duration-200",
+                  upvoted ? "fill-rose-500 text-rose-500 scale-110" : "text-muted-foreground"
+                )}
+                strokeWidth={2}
+              />
+              <span>{count}</span>
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -131,15 +178,23 @@ export function MyReportCard({
 export function CommunityReportCard({
   report,
   onUpvote,
+  onDetails,
 }: {
   report: ReportResponse;
   onUpvote?: (id: number) => void;
+  onDetails?: (r: ReportResponse) => void;
 }) {
-  const cat = categoryMeta(report.category);
-  const s = statusMeta(normalizeStatus(report.status));
-  const u = urgencyMeta(normalizeUrgency(report.urgency));
+  const { t, lang } = useI18n();
+  const cat = categoryMeta(report.category, lang);
+  const s = statusMeta(normalizeStatus(report.status), lang);
+  const u = urgencyMeta(normalizeUrgency(report.urgency), lang);
   const [upvoted, setUpvoted] = useState(report.has_upvoted);
   const [count, setCount] = useState(report.upvote_count);
+
+  useEffect(() => {
+    setUpvoted(report.has_upvoted);
+    setCount(report.upvote_count);
+  }, [report.has_upvoted, report.upvote_count]);
 
   function toggle() {
     setUpvoted((prev) => {
@@ -181,26 +236,40 @@ export function CommunityReportCard({
             `Report #${report.id}`}
         </h3>
         <p className="line-clamp-1 text-xs text-muted-foreground">
-          {report.address_description || "—"} · by {report.citizen_name}
+          {report.address_description || "—"} · {t("hub_by")} {report.citizen_name}
         </p>
-        <div className="mt-auto flex items-center justify-between pt-2">
-          <span className="text-xs text-muted-foreground">{count} upvotes</span>
+        <div className="mt-auto flex items-center justify-between gap-2.5 pt-3 border-t border-border/50">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 flex-1 text-xs font-medium"
+            onClick={() => onDetails?.(report)}
+          >
+            {t("hub_view_details")}
+          </Button>
           <button
             type="button"
-            onClick={toggle}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle();
+            }}
             aria-pressed={upvoted}
+            title={upvoted ? t("hub_liked") : t("hub_like")}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95",
+              "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all select-none active:scale-95",
               upvoted
-                ? "border-destructive/30 bg-destructive/10 text-destructive"
-                : "border-border bg-card text-foreground hover:bg-secondary",
+                ? "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400 shadow-2xs"
+                : "border-border bg-card text-muted-foreground hover:border-border hover:bg-secondary hover:text-foreground",
             )}
           >
             <Heart
-              className={cn("size-3.5", upvoted && "fill-destructive")}
+              className={cn(
+                "size-3.5 shrink-0 transition-transform duration-200",
+                upvoted ? "fill-rose-500 text-rose-500 scale-110" : "text-muted-foreground"
+              )}
               strokeWidth={2}
             />
-            {upvoted ? "Upvoted" : "Upvote"}
+            <span>{count}</span>
           </button>
         </div>
       </div>

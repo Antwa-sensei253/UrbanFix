@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "lucide-react";
 import type { ReactNode } from "react";
+import { LanguageToggle } from "@/components/language-toggle";
 
 export function AuthShell({
   title,
@@ -25,12 +26,15 @@ export function AuthShell({
             UrbanFix
           </span>
         </Link>
-        <Link
-          to="/"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground"
-        >
-          ← Back home
-        </Link>
+        <div className="flex items-center gap-3">
+          <LanguageToggle />
+          <Link
+            to="/"
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            ← Back home
+          </Link>
+        </div>
       </header>
       <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-16">
         <div className="w-full max-w-md">

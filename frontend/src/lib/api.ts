@@ -1,12 +1,8 @@
 // ============================================================
-// UrbanFix API client — matches the C# backend DTOs exactly.
-// Base URL is configurable via VITE_API_URL.
-// JWT is read from localStorage ("urbanfix_token") on every call.
+// UrbanFix API client — completely mocked for zero-cost static deployment.
 // ============================================================
 
-export const API_URL =
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/+$/, "") ||
-  "http://localhost:5000";
+import { db, delay } from "./mock-data";
 
 const TOKEN_KEY = "urbanfix_token";
 const USER_KEY = "urbanfix_user";
@@ -45,24 +41,8 @@ export function setStoredUser(user: StoredUser | null) {
   else localStorage.removeItem(USER_KEY);
 }
 
-// ============================================================
-// Backend DTOs — kept 1:1 with the C# response shapes.
-// ============================================================
-
-export type BackendRole =
-  | "Citizen"
-  | "Technician"
-  | "DistrictManager"
-  | "Governor";
-
-export type ReportStatus =
-  | "Reported"
-  | "Verified"
-  | "Assigned"
-  | "InProgress"
-  | "Resolved"
-  | "Rejected";
-
+export type BackendRole = "Citizen" | "Technician" | "DistrictManager" | "Governor";
+export type ReportStatus = "Reported" | "Verified" | "Assigned" | "InProgress" | "Resolved" | "Rejected";
 export type ReportUrgency = "Low" | "Medium" | "High" | "Critical";
 
 export interface ReportResponse {
@@ -99,6 +79,10 @@ export interface CategoryData {
 export interface DistrictData {
   id: number;
   name: string;
+  latitude?: number;
+  longitude?: number;
+  radius_km?: number;
+  boundaries_description?: string;
 }
 
 export interface UserManagementResponse {
@@ -142,10 +126,6 @@ export interface UpvoteResponse {
   upvote_count: number;
   has_upvoted: boolean;
 }
-
-// ============================================================
-// Request shapes
-// ============================================================
 
 export interface RegisterRequest {
   full_name: string;
@@ -199,176 +179,295 @@ export interface UpdateUserRoleRequest {
   district_id?: number | null;
 }
 
-// ============================================================
-// Low-level fetch wrapper
-// ============================================================
-
 export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-    public body?: unknown,
-  ) {
+  constructor(public status: number, message: string, public body?: unknown) {
     super(message);
   }
 }
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE" | "PUT";
+// ============================================================
+// Mock Endpoints
+// ============================================================
 
-async function request<T>(
-  path: string,
-  opts: {
-    method?: Method;
-    body?: unknown;
-    auth?: boolean;
-    raw?: boolean;
-  } = {},
-): Promise<T> {
-  const { method = "GET", body, auth = true } = opts;
-  const headers: Record<string, string> = {
-    Accept: "application/json",
+function enrichReport(r: ReportResponse): ReportResponse {
+  const user = getStoredUser();
+  const upvotes = db.get("upvotes") || {};
+  const reportUpvotes = upvotes[r.id] || [];
+  return {
+    ...r,
+    has_upvoted: user ? reportUpvotes.includes(user.user_id) : r.has_upvoted,
   };
-  if (body !== undefined) headers["Content-Type"] = "application/json";
-  if (auth) {
-    const token = getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-  }
-  const res = await fetch(`${API_URL}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
-  if (res.status === 204) return undefined as T;
-
-  let data: unknown = null;
-  const text = await res.text();
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      data = text;
-    }
-  }
-
-  if (!res.ok) {
-    const msg =
-      (data && typeof data === "object" && "message" in data
-        ? String((data as { message?: unknown }).message)
-        : null) ||
-      (typeof data === "string" ? data : null) ||
-      `Request failed (${res.status})`;
-    throw new ApiError(res.status, msg, data);
-  }
-  return data as T;
 }
-
-// ============================================================
-// Endpoints
-// ============================================================
 
 export const api = {
   auth: {
-    register: (body: RegisterRequest) =>
-      request<{ message?: string }>("/api/auth/register", {
-        method: "POST",
-        body,
-        auth: false,
-      }),
-    verifyOtp: (body: { national_id: string; otp: string }) =>
-      request<{ message?: string }>("/api/auth/verify-otp", {
-        method: "POST",
-        body,
-        auth: false,
-      }),
-    login: (body: LoginRequest) =>
-      request<LoginResponse>("/api/auth/login", {
-        method: "POST",
-        body,
-        auth: false,
-      }),
-    districts: () =>
-      request<DistrictData[]>("/api/auth/districts", { auth: false }),
+    register: async (body: RegisterRequest) => {
+      await delay(600);
+      const users = db.get("users");
+      if (users.find((u) => u.national_id === body.national_id)) {
+        throw new ApiError(400, "National ID already exists");
+      }
+      const newUser: UserManagementResponse = {
+        id: Date.now(),
+        full_name: body.full_name,
+        national_id: body.national_id,
+        email: body.email,
+        role: body.role,
+        district_id: body.district_id || undefined,
+        district_name: body.district_id ? db.get("districts").find(d => d.id === body.district_id)?.name : undefined,
+        created_at: new Date().toISOString(),
+      };
+      db.set("users", [...users, newUser]);
+      return { message: "Created successfully" };
+    },
+    verifyOtp: async () => {
+      await delay(400);
+      return { message: "Verified" };
+    },
+    login: async (body: LoginRequest): Promise<LoginResponse> => {
+      await delay(500);
+      if (body.password !== "Pass123") {
+        throw new ApiError(401, "Invalid password. Use 'Pass123' for the demo.");
+      }
+      const user = db.get("users").find((u) => u.national_id === body.national_id);
+      if (!user) {
+        throw new ApiError(404, "User not found");
+      }
+      return {
+        token: `mock_token_${user.id}`,
+        role: user.role,
+        user_id: user.id,
+        full_name: user.full_name,
+      };
+    },
+    districts: async () => {
+      await delay(200);
+      return db.get("districts");
+    },
   },
   reports: {
-    create: (body: CreateReportRequest) =>
-      request<ReportResponse>("/api/reports", { method: "POST", body }),
-    all: () => request<ReportResponse[]>("/api/reports"),
-    mine: () => request<ReportResponse[]>("/api/reports/mine"),
-    community: () =>
-      request<CommunityReportResponse[]>("/api/reports/community"),
-    upvote: (id: number) =>
-      request<UpvoteResponse>(`/api/reports/${id}/upvote`, { method: "POST" }),
-    verify: (id: number, body: VerifyReportRequest) =>
-      request<ReportResponse>(`/api/reports/${id}/verify`, {
-        method: "PATCH",
-        body,
-      }),
-    assign: (id: number, body: AssignReportRequest) =>
-      request<ReportResponse>(`/api/reports/${id}/assign`, {
-        method: "PATCH",
-        body,
-      }),
-    updateStatus: (id: number, body: UpdateStatusRequest) =>
-      request<ReportResponse>(`/api/reports/${id}/status`, {
-        method: "PATCH",
-        body,
-      }),
+    create: async (body: CreateReportRequest): Promise<ReportResponse> => {
+      await delay(800);
+      const currentUser = getStoredUser();
+      if (!currentUser) throw new ApiError(401, "Unauthorized");
+
+      const newReport: ReportResponse = {
+        id: Date.now(),
+        citizen_id: currentUser.user_id,
+        citizen_name: currentUser.full_name,
+        category: body.category,
+        urgency: body.urgency,
+        latitude: body.latitude || 30.0444,
+        longitude: body.longitude || 31.2357,
+        address_description: body.address_description,
+        photo_url: body.photo_url || body.photo_base64,
+        description: body.description,
+        status: "Reported",
+        is_public: true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        upvote_count: 0,
+        has_upvoted: false,
+      };
+      db.set("reports", [newReport, ...db.get("reports")]);
+      return newReport;
+    },
+    all: async (): Promise<ReportResponse[]> => {
+      await delay(300);
+      return db.get("reports").map(enrichReport);
+    },
+    mine: async (): Promise<ReportResponse[]> => {
+      await delay(300);
+      const currentUser = getStoredUser();
+      if (!currentUser) return [];
+      return db.get("reports")
+        .filter((r) => r.citizen_id === currentUser.user_id)
+        .map(enrichReport);
+    },
+    community: async (): Promise<CommunityReportResponse[]> => {
+      await delay(300);
+      return db.get("reports")
+        .filter((r) => r.is_public)
+        .map(enrichReport);
+    },
+    liked: async (): Promise<ReportResponse[]> => {
+      await delay(300);
+      const currentUser = getStoredUser();
+      if (!currentUser) return [];
+      const upvotes = db.get("upvotes") || {};
+      return db.get("reports")
+        .filter((r) => (upvotes[r.id] || []).includes(currentUser.user_id))
+        .map(enrichReport);
+    },
+    upvote: async (id: number): Promise<UpvoteResponse> => {
+      await delay(50);
+      const user = getStoredUser();
+      if (!user) throw new ApiError(401, "Unauthorized");
+      
+      const upvotes: Record<number, number[]> = db.get("upvotes") || {};
+      const reportUpvotes = upvotes[id] || [];
+      const hasUpvoted = reportUpvotes.includes(user.user_id);
+      
+      let newCount = 0;
+      let newHasUpvoted = !hasUpvoted;
+
+      if (newHasUpvoted) {
+        upvotes[id] = [...reportUpvotes, user.user_id];
+      } else {
+        upvotes[id] = reportUpvotes.filter((uid) => uid !== user.user_id);
+      }
+      db.set("upvotes", upvotes);
+
+      db.updateReport(id, (r) => {
+        newCount = Math.max(0, r.upvote_count + (newHasUpvoted ? 1 : -1));
+        return {
+          upvote_count: newCount,
+          has_upvoted: newHasUpvoted,
+        };
+      });
+
+      return { upvote_count: newCount, has_upvoted: newHasUpvoted };
+    },
+    verify: async (id: number, body: VerifyReportRequest): Promise<ReportResponse> => {
+      await delay(400);
+      return db.updateReport(id, () => ({
+        status: body.is_approved ? "Verified" : "Rejected",
+        rejection_reason: body.rejection_reason,
+        category: body.category,
+        is_public: body.is_public,
+      }));
+    },
+    assign: async (id: number, body: AssignReportRequest): Promise<ReportResponse> => {
+      await delay(400);
+      const tech = db.get("users").find((u) => u.id === body.technician_id);
+      return db.updateReport(id, () => ({
+        status: "Assigned",
+        technician_id: body.technician_id,
+        technician_name: tech?.full_name,
+      }));
+    },
+    updateStatus: async (id: number, body: UpdateStatusRequest): Promise<ReportResponse> => {
+      await delay(400);
+      return db.updateReport(id, () => ({
+        status: body.new_status,
+        photo_url: body.photo_url,
+      }));
+    },
   },
   analytics: {
-    summary: () =>
-      request<AnalyticsSummaryResponse>("/api/analytics/summary"),
+    summary: async (): Promise<AnalyticsSummaryResponse> => {
+      await delay(500);
+      const reports = db.get("reports");
+      return {
+        total_open: reports.filter((r) => r.status !== "Resolved" && r.status !== "Rejected").length,
+        total_resolved: reports.filter((r) => r.status === "Resolved").length,
+        total_in_progress: reports.filter((r) => r.status === "InProgress").length,
+        total_critical: reports.filter((r) => r.urgency === "Critical" || r.urgency === "critical").length,
+        avg_resolution_hours: 12.5,
+        by_category: [
+          { category: "Pothole", count: reports.filter((r) => r.category === "Pothole").length },
+          { category: "Streetlight", count: reports.filter((r) => r.category === "Streetlight").length },
+          { category: "Water leak", count: reports.filter((r) => r.category === "Water leak").length },
+        ],
+      };
+    },
   },
   categories: {
-    all: () => request<CategoryData[]>("/api/categories"),
-    create: (body: CreateCategoryRequest) =>
-      request<CategoryData>("/api/categories", { method: "POST", body }),
-    remove: (id: number) =>
-      request<void>(`/api/categories/${id}`, { method: "DELETE" }),
+    all: async (): Promise<CategoryData[]> => {
+      await delay(200);
+      return db.get("categories");
+    },
+    create: async (body: CreateCategoryRequest): Promise<CategoryData> => {
+      await delay(400);
+      const newCat: CategoryData = { id: Date.now(), ...body };
+      db.set("categories", [...db.get("categories"), newCat]);
+      return newCat;
+    },
+    remove: async (id: number): Promise<void> => {
+      await delay(400);
+      db.set("categories", db.get("categories").filter((c) => c.id !== id));
+    },
   },
   admin: {
-    users: () =>
-      request<UserManagementResponse[]>("/api/admin/users"),
-    updateUserRole: (id: number, body: UpdateUserRoleRequest) =>
-      request<UserManagementResponse>(`/api/admin/users/${id}/role`, {
-        method: "PATCH",
-        body,
-      }),
-    createDistrict: (name: string) =>
-      request<DistrictData>("/api/admin/districts", {
-        method: "POST",
-        body: name as unknown as object,
-      }),
+    users: async (): Promise<UserManagementResponse[]> => {
+      await delay(300);
+      return db.get("users");
+    },
+    updateUserRole: async (id: number, body: UpdateUserRoleRequest): Promise<UserManagementResponse> => {
+      await delay(400);
+      const users = db.get("users");
+      const idx = users.findIndex((u) => u.id === id);
+      if (idx === -1) throw new ApiError(404, "User not found");
+      users[idx] = {
+        ...users[idx],
+        role: body.role,
+        district_id: body.district_id || undefined,
+        district_name: body.district_id ? db.get("districts").find((d) => d.id === body.district_id)?.name : undefined,
+      };
+      db.set("users", users);
+      return users[idx];
+    },
+    createDistrict: async (
+      name: string,
+      latitude?: number,
+      longitude?: number,
+      radius_km?: number,
+      boundaries_description?: string,
+    ): Promise<DistrictData> => {
+      await delay(300);
+      const dist: DistrictData = {
+        id: Date.now(),
+        name,
+        latitude: latitude ?? 30.0444,
+        longitude: longitude ?? 31.2357,
+        radius_km: radius_km ?? 5.0,
+        boundaries_description:
+          boundaries_description ?? "Standard municipal sector boundary.",
+      };
+      db.set("districts", [...db.get("districts"), dist]);
+      return dist;
+    },
+    updateDistrict: async (
+      id: number,
+      data: Partial<DistrictData>,
+    ): Promise<DistrictData> => {
+      await delay(300);
+      const dists = db.get("districts");
+      const idx = dists.findIndex((d) => d.id === id);
+      if (idx === -1) throw new ApiError(404, "District not found");
+      dists[idx] = { ...dists[idx], ...data };
+      db.set("districts", dists);
+      return dists[idx];
+    },
   },
   users: {
-    technicians: () =>
-      request<TechnicianResponse[]>("/api/users/technicians"),
+    technicians: async (): Promise<TechnicianResponse[]> => {
+      await delay(200);
+      return db.get("users")
+        .filter((u) => u.role === "Technician")
+        .map((t) => ({
+          id: t.id,
+          full_name: t.full_name,
+          district_id: t.district_id,
+          district_name: t.district_name,
+          active_assignments: db.get("reports").filter((r) => r.technician_id === t.id && r.status !== "Resolved").length,
+        }));
+    },
   },
 };
 
-// ============================================================
-// Helpers
-// ============================================================
-
-/** Map backend role -> route path. */
 export function rolePath(role: BackendRole): string {
   switch (role) {
-    case "Citizen":
-      return "/reports";
-    case "Technician":
-      return "/technician";
-    case "DistrictManager":
-      return "/manager";
-    case "Governor":
-      return "/governor";
+    case "Citizen": return "/reports";
+    case "Technician": return "/technician";
+    case "DistrictManager": return "/manager";
+    case "Governor": return "/governor";
   }
 }
 
 export function roleLabel(role: BackendRole): string {
   switch (role) {
-    case "DistrictManager":
-      return "District Manager";
-    default:
-      return role;
+    case "DistrictManager": return "District Manager";
+    default: return role;
   }
 }

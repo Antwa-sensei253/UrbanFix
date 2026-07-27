@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import * as React from "react";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
@@ -15,7 +16,21 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  MapPin,
+  Pencil,
+  SlidersHorizontal,
+  LocateFixed,
+  Globe,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Bar,
   BarChart,
@@ -82,6 +97,8 @@ import {
 import { normalizeStatus, normalizeUrgency } from "@/lib/reports-data";
 
 import { useI18n } from "@/lib/i18n";
+
+const DistrictBoundaryMap = React.lazy(() => import("@/components/DistrictBoundaryMap"));
 
 export const Route = createFileRoute("/governor")({
   head: () => ({
@@ -786,79 +803,409 @@ function DistrictsTab({
   onAdded: () => void;
 }) {
   const [name, setName] = useState("");
+  const [radius, setRadius] = useState("5.0");
+  const [lat, setLat] = useState("30.0444");
+  const [lng, setLng] = useState("31.2357");
+  const [desc, setDesc] = useState("");
+  const [editingDistrict, setEditingDistrict] = useState<DistrictData | null>(null);
+
   const createMut = useMutation({
-    mutationFn: (n: string) => api.admin.createDistrict(n),
+    mutationFn: (vars: { name: string; lat: number; lng: number; radius: number; desc: string }) =>
+      api.admin.createDistrict(vars.name, vars.lat, vars.lng, vars.radius, vars.desc),
     onSuccess: () => {
-      toast.success("District created");
+      toast.success("District boundary zone created with visual point mapping");
       setName("");
+      setRadius("5.0");
+      setLat("30.0444");
+      setLng("31.2357");
+      setDesc("");
       onAdded();
     },
     onError: (e) => toast.error("Create failed", { description: (e as Error).message }),
   });
 
+  const updateMut = useMutation({
+    mutationFn: (vars: { id: number; data: Partial<DistrictData> }) =>
+      api.admin.updateDistrict(vars.id, vars.data),
+    onSuccess: () => {
+      toast.success("District surveillance radius and GPS point updated successfully");
+      setEditingDistrict(null);
+      onAdded();
+    },
+    onError: (e) => toast.error("Update failed", { description: (e as Error).message }),
+  });
+
   return (
-    <div className="grid gap-4 md:grid-cols-3">
-      <div className="rounded-lg border border-border bg-card p-5 md:col-span-1">
-        <h3 className="text-sm font-semibold text-foreground">New district</h3>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Districts are used to scope reports to managers.
-        </p>
+    <div className="grid gap-6 lg:grid-cols-12">
+      {/* Left: Interactive District Builder */}
+      <div className="rounded-xl border border-border bg-card p-5 lg:col-span-5 h-fit shadow-2xs space-y-4">
+        <div className="flex items-center justify-between border-b border-border/60 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground shadow-2xs">
+              <LocateFixed className="size-4" />
+            </span>
+            <div>
+              <h3 className="text-sm font-bold tracking-tight text-foreground">Interactive Jurisdiction Pointing</h3>
+              <p className="text-[11px] text-muted-foreground">Point center location on map & adjust surveillance radius.</p>
+            </div>
+          </div>
+        </div>
+
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) createMut.mutate(name.trim());
+            if (name.trim()) {
+              createMut.mutate({
+                name: name.trim(),
+                lat: parseFloat(lat) || 30.0444,
+                lng: parseFloat(lng) || 31.2357,
+                radius: parseFloat(radius) || 5.0,
+                desc: desc.trim() || "Municipal district operational zone.",
+              });
+            }
           }}
-          className="mt-4 space-y-3"
+          className="space-y-4"
         >
           <div className="space-y-1.5">
-            <Label htmlFor="district-name" className="text-xs">
-              Name
+            <Label htmlFor="district-name" className="text-xs font-semibold">
+              District Zone Name
             </Label>
             <Input
               id="district-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Riverside"
+              placeholder="e.g. Riverside Sector"
+              className="text-xs h-9 bg-canvas/60"
+              required
             />
           </div>
+
+          {/* Interactive Live Map Selector */}
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-semibold text-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <Globe className="size-3.5" /> Live Map Pointer
+              </span>
+              <span className="font-mono text-[11px] font-normal text-muted-foreground">
+                GPS: {parseFloat(lat).toFixed(4)}° N, {parseFloat(lng).toFixed(4)}° E
+              </span>
+            </div>
+            <Suspense fallback={<div className="h-[220px] w-full bg-secondary/50 rounded-xl animate-pulse border border-border" />}>
+              <DistrictBoundaryMap
+                lat={parseFloat(lat) || 30.0444}
+                lng={parseFloat(lng) || 31.2357}
+                radiusKm={parseFloat(radius) || 5.0}
+                name={name || "Target Center"}
+                height="h-[220px]"
+                interactive={true}
+                onLocationSelect={(newLat, newLng) => {
+                  setLat(String(newLat));
+                  setLng(String(newLng));
+                }}
+                otherDistricts={districts}
+              />
+            </Suspense>
+          </div>
+
+          {/* UI Surveillance Radius Controller Slider */}
+          <div className="space-y-2.5 rounded-lg border border-primary/20 bg-primary/5 p-3.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-foreground flex items-center gap-1.5">
+                <SlidersHorizontal className="size-3.5 text-primary" /> Surveillance Radius Space
+              </span>
+              <span className="font-mono text-xs font-extrabold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/30 shadow-2xs">
+                {radius} km (~{Math.round(Math.PI * Math.pow(parseFloat(radius) || 5, 2))} km²)
+              </span>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-7 shrink-0 text-xs font-bold shadow-2xs bg-card hover:bg-secondary"
+                onClick={() => setRadius((r) => String(Math.max(0.5, (parseFloat(r) || 5) - 0.5)))}
+                title="Decrease radius by 0.5 km"
+              >
+                -
+              </Button>
+              <input
+                type="range"
+                min="0.5"
+                max="35"
+                step="0.5"
+                value={radius}
+                onChange={(e) => setRadius(e.target.value)}
+                className="w-full accent-primary h-2 bg-secondary rounded-lg cursor-pointer"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-7 shrink-0 text-xs font-bold shadow-2xs bg-card hover:bg-secondary"
+                onClick={() => setRadius((r) => String(Math.min(100, (parseFloat(r) || 5) + 0.5)))}
+                title="Increase radius by 0.5 km"
+              >
+                +
+              </Button>
+            </div>
+            <div className="flex justify-between text-[10px] font-medium text-muted-foreground pt-0.5">
+              <span>0.5 km (Precise Local)</span>
+              <span>Slide to scale coverage space</span>
+              <span>35 km (Metropolitan)</span>
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="district-desc" className="text-xs font-semibold">
+              Geographical Perimeter & Landmarks
+            </Label>
+            <Textarea
+              id="district-desc"
+              rows={2}
+              value={desc}
+              onChange={(e) => setDesc(e.target.value)}
+              placeholder="Describe borders, highways, and operational limits of this sector..."
+              className="text-xs resize-none bg-canvas/60"
+            />
+          </div>
+
           <Button
             type="submit"
             size="sm"
             disabled={!name.trim() || createMut.isPending}
-            className="w-full gap-1.5"
+            className="w-full gap-2 font-bold shadow-2xs h-10 mt-1"
           >
-            <Plus className="size-3.5" /> Add district
+            <LocateFixed className="size-4" /> Initialize Municipal Jurisdiction
           </Button>
         </form>
       </div>
-      <div className="rounded-lg border border-border bg-card md:col-span-2">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Name</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">ID</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
+
+      {/* Right: Master Overview & District Directory */}
+      <div className="lg:col-span-7 space-y-5">
+        <div className="rounded-xl border border-border bg-card shadow-2xs overflow-hidden">
+          <div className="border-b border-border bg-secondary/30 px-5 py-3.5 flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold tracking-tight text-foreground">Metropolitan Surveillance Network</h3>
+              <p className="text-xs text-muted-foreground">Master view of all district coverage circles and operational zones.</p>
+            </div>
+            <span className="inline-flex h-6 items-center justify-center rounded-full bg-primary/10 px-3 text-xs font-bold text-primary">
+              {districts.length} Active Jurisdictions
+            </span>
+          </div>
+
+          {/* Master Overview Map */}
+          <div className="p-3 bg-secondary/10 border-b border-border/60">
+            <Suspense fallback={<div className="h-[240px] w-full bg-secondary/50 rounded-lg animate-pulse" />}>
+              <DistrictBoundaryMap
+                lat={districts[0]?.latitude ?? 30.0444}
+                lng={districts[0]?.longitude ?? 31.2357}
+                radiusKm={districts[0]?.radius_km ?? 5.0}
+                name={districts[0]?.name ?? "Master Hub"}
+                height="h-[240px]"
+                interactive={false}
+                otherDistricts={districts}
+              />
+            </Suspense>
+          </div>
+
+          <div className="divide-y divide-border/60">
             {districts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="py-10 text-center text-sm text-muted-foreground">
-                  No districts yet.
-                </TableCell>
-              </TableRow>
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                No municipal districts configured yet. Point a location on the left to start.
+              </div>
             ) : (
               districts.map((d) => (
-                <TableRow key={d.id}>
-                  <TableCell className="font-medium text-foreground">{d.name}</TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    #{d.id}
-                  </TableCell>
-                </TableRow>
+                <div key={d.id} className="p-4 sm:p-5 hover:bg-secondary/20 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5 max-w-md">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-foreground text-sm flex items-center gap-1.5">
+                        <MapPin className="size-3.5 text-primary shrink-0" />
+                        {d.name}
+                      </span>
+                      <span className="text-[10px] font-mono font-semibold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full border border-border">
+                        ID #{d.id}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {d.boundaries_description || "Standard municipal district operational zone."}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-border/40">
+                    <div className="bg-canvas/60 rounded-lg p-2.5 border border-border/60 min-w-28 text-center">
+                      <div className="text-[10px] text-muted-foreground font-medium flex items-center justify-center gap-1">
+                        <SlidersHorizontal className="size-2.5 text-primary" /> Radius Space
+                      </div>
+                      <div className="font-extrabold text-foreground mt-0.5 text-sm">{d.radius_km ?? 5.0} km</div>
+                      <div className="text-[10px] text-primary font-bold">~{Math.round(Math.PI * Math.pow(d.radius_km ?? 5.0, 2))} km² area</div>
+                    </div>
+
+                    <div className="bg-canvas/60 rounded-lg p-2.5 border border-border/60 min-w-32 text-center hidden xl:block">
+                      <div className="text-[10px] text-muted-foreground font-medium">GPS Point</div>
+                      <div className="font-mono text-xs font-bold text-foreground mt-0.5">
+                        {d.latitude?.toFixed(4) ?? "30.0444"}° N
+                      </div>
+                      <div className="font-mono text-[11px] text-muted-foreground">
+                        {d.longitude?.toFixed(4) ?? "31.2357"}° E
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditingDistrict({ ...d, radius_km: d.radius_km ?? 5.0, latitude: d.latitude ?? 30.0444, longitude: d.longitude ?? 31.2357, boundaries_description: d.boundaries_description ?? "" })}
+                      className="h-10 px-3.5 gap-1.5 text-xs font-bold shadow-2xs bg-primary/5 hover:bg-primary/15 hover:text-primary border-primary/20"
+                    >
+                      <Pencil className="size-3.5 text-primary" /> Point & Adjust
+                    </Button>
+                  </div>
+                </div>
               ))
             )}
-          </TableBody>
-        </Table>
+          </div>
+        </div>
       </div>
+
+      {/* Interactive Point & Adjust Boundary Modal */}
+      {editingDistrict && (
+        <Dialog open={!!editingDistrict} onOpenChange={(v) => !v && setEditingDistrict(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-base font-bold">
+                <LocateFixed className="size-5 text-primary animate-pulse" />
+                <span>Interactive Geo-Surveillance Editor — {editingDistrict.name}</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                Click directly on the map to relocate the district headquarters pin, or slide the radius control below to dynamically expand or contract the municipal surveillance space.
+              </DialogDescription>
+            </DialogHeader>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (editingDistrict.name.trim()) {
+                  updateMut.mutate({
+                    id: editingDistrict.id,
+                    data: {
+                      name: editingDistrict.name.trim(),
+                      radius_km: Number(editingDistrict.radius_km) || 5.0,
+                      latitude: Number(editingDistrict.latitude) || 30.0444,
+                      longitude: Number(editingDistrict.longitude) || 31.2357,
+                      boundaries_description: editingDistrict.boundaries_description,
+                    },
+                  });
+                }
+              }}
+              className="space-y-4 py-1"
+            >
+              {/* Interactive Live Editor Map */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-xs font-semibold">
+                  <span className="flex items-center gap-1.5 text-primary">
+                    <Globe className="size-3.5" /> Live Pointing Map (Click or drag pin)
+                  </span>
+                  <span className="font-mono text-[11px] font-bold text-foreground bg-secondary px-2 py-0.5 rounded border border-border">
+                    Current Center: {Number(editingDistrict.latitude ?? 30.0444).toFixed(4)}° N, {Number(editingDistrict.longitude ?? 31.2357).toFixed(4)}° E
+                  </span>
+                </div>
+                <Suspense fallback={<div className="h-[300px] w-full bg-secondary/60 rounded-xl animate-pulse border border-border" />}>
+                  <DistrictBoundaryMap
+                    lat={Number(editingDistrict.latitude ?? 30.0444)}
+                    lng={Number(editingDistrict.longitude ?? 31.2357)}
+                    radiusKm={Number(editingDistrict.radius_km ?? 5.0)}
+                    name={editingDistrict.name}
+                    height="h-[300px]"
+                    interactive={true}
+                    onLocationSelect={(newLat, newLng) => {
+                      setEditingDistrict({
+                        ...editingDistrict,
+                        latitude: newLat,
+                        longitude: newLng,
+                      });
+                    }}
+                    otherDistricts={districts}
+                    currentDistrictId={editingDistrict.id}
+                  />
+                </Suspense>
+              </div>
+
+              {/* Live Interactive Surveillance Radius Controller */}
+              <div className="space-y-3 rounded-xl border border-primary/25 bg-gradient-to-r from-primary/10 via-card to-card p-4 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                  <div>
+                    <div className="font-extrabold text-foreground flex items-center gap-1.5 text-sm">
+                      <SlidersHorizontal className="size-4 text-primary" /> Dynamic Surveillance Radius Control
+                    </div>
+                    <p className="text-muted-foreground text-[11px] mt-0.5">Slide to instantly expand or contract coverage perimeter on the map.</p>
+                  </div>
+                  <span className="font-mono text-sm font-black text-primary bg-primary/15 px-3 py-1 rounded-full border border-primary/30 shadow-2xs text-center">
+                    {editingDistrict.radius_km ?? 5.0} km (~{Math.round(Math.PI * Math.pow(Number(editingDistrict.radius_km ?? 5.0), 2))} km²)
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 pt-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-8 shrink-0 font-bold text-sm shadow-2xs bg-card hover:bg-secondary"
+                    onClick={() => setEditingDistrict({ ...editingDistrict, radius_km: Math.max(0.5, Number(editingDistrict.radius_km ?? 5.0) - 0.5) })}
+                  >
+                    -
+                  </Button>
+                  <input
+                    type="range"
+                    min="0.5"
+                    max="50"
+                    step="0.5"
+                    value={editingDistrict.radius_km ?? 5.0}
+                    onChange={(e) => setEditingDistrict({ ...editingDistrict, radius_km: parseFloat(e.target.value) || 0.5 })}
+                    className="w-full accent-primary h-2.5 bg-secondary rounded-lg cursor-pointer"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="size-8 shrink-0 font-bold text-sm shadow-2xs bg-card hover:bg-secondary"
+                    onClick={() => setEditingDistrict({ ...editingDistrict, radius_km: Math.min(100, Number(editingDistrict.radius_km ?? 5.0) + 0.5) })}
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">District Zone Name</Label>
+                  <Input
+                    value={editingDistrict.name}
+                    onChange={(e) => setEditingDistrict({ ...editingDistrict, name: e.target.value })}
+                    className="h-9 text-xs font-semibold"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold">Geographical Perimeter & Landmarks</Label>
+                  <Input
+                    value={editingDistrict.boundaries_description ?? ""}
+                    onChange={(e) => setEditingDistrict({ ...editingDistrict, boundaries_description: e.target.value })}
+                    placeholder="Detail borders, roads, and regional bounds..."
+                    className="h-9 text-xs"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="pt-3 border-t border-border/60">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setEditingDistrict(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" size="sm" disabled={updateMut.isPending} className="gap-2 font-bold shadow-2xs">
+                  <LocateFixed className="size-4" /> Apply & Save Geo-Boundary
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

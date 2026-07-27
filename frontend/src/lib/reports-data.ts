@@ -26,8 +26,29 @@ export const CATEGORY_META: Record<
   Other: { label: "Other", emoji: "📍", slaHours: 72 },
 };
 
-export function categoryMeta(name: string) {
-  return CATEGORY_META[name] ?? { label: name, emoji: "📍", slaHours: 48 };
+function getLang(override?: string): string {
+  if (override) return override;
+  if (typeof document !== "undefined" && document.documentElement.lang) {
+    return document.documentElement.lang;
+  }
+  return "en";
+}
+
+export function categoryMeta(name: string, lang?: string) {
+  const isAr = getLang(lang) === "ar";
+  const base = CATEGORY_META[name] ?? { label: name, emoji: "📍", slaHours: 48 };
+  if (!isAr) return base;
+  const arLabels: Record<string, string> = {
+    Pothole: "حفرة",
+    Streetlight: "عمود إنارة",
+    Graffiti: "كتابات على الجدران",
+    "Trash / Debris": "قمامة / أنقاض",
+    "Fallen tree": "شجرة ساقطة",
+    "Damaged signage": "لوحة إرشادية تالفة",
+    "Water leak": "تسرب مياه",
+    Other: "أخرى",
+  };
+  return { ...base, label: arLabels[base.label] ?? base.label };
 }
 
 export function normalizeUrgency(u: string): ReportUiUrgency {
@@ -52,33 +73,35 @@ export function normalizeStatus(s: string): ReportUiStatus {
   return "reported";
 }
 
-export function statusMeta(s: ReportUiStatus) {
+export function statusMeta(s: ReportUiStatus, lang?: string) {
+  const isAr = getLang(lang) === "ar";
   switch (s) {
     case "reported":
-      return { label: "Reported", tone: "primary" as const };
+      return { label: isAr ? "مُبلغ عنه" : "Reported", tone: "primary" as const };
     case "verified":
-      return { label: "Verified", tone: "primary" as const };
+      return { label: isAr ? "تم التحقق" : "Verified", tone: "primary" as const };
     case "assigned":
-      return { label: "Assigned", tone: "primary" as const };
+      return { label: isAr ? "تم التعيين" : "Assigned", tone: "primary" as const };
     case "in_progress":
-      return { label: "In progress", tone: "warning" as const };
+      return { label: isAr ? "قيد التنفيذ" : "In progress", tone: "warning" as const };
     case "resolved":
-      return { label: "Resolved", tone: "success" as const };
+      return { label: isAr ? "تم الحل" : "Resolved", tone: "success" as const };
     case "rejected":
-      return { label: "Rejected", tone: "destructive" as const };
+      return { label: isAr ? "مرفوض" : "Rejected", tone: "destructive" as const };
   }
 }
 
-export function urgencyMeta(u: ReportUiUrgency) {
+export function urgencyMeta(u: ReportUiUrgency, lang?: string) {
+  const isAr = getLang(lang) === "ar";
   switch (u) {
     case "low":
-      return { label: "Low", tone: "muted" as const };
+      return { label: isAr ? "منخفضة" : "Low", tone: "muted" as const };
     case "medium":
-      return { label: "Medium", tone: "primary" as const };
+      return { label: isAr ? "متوسطة" : "Medium", tone: "primary" as const };
     case "high":
-      return { label: "High", tone: "warning" as const };
+      return { label: isAr ? "عالية" : "High", tone: "warning" as const };
     case "critical":
-      return { label: "Critical", tone: "destructive" as const };
+      return { label: isAr ? "حرجة" : "Critical", tone: "destructive" as const };
   }
 }
 
@@ -108,9 +131,10 @@ export function formatDate(iso: string) {
  * SLA badge metadata for a report card. `overdue` is red, `urgent` (<4h left)
  * is orange, otherwise muted.
  */
-export function slaChip(report: ReportResponse) {
+export function slaChip(report: ReportResponse, lang?: string) {
   const status = normalizeStatus(report.status);
   if (status === "resolved" || status === "rejected") return null;
+  const isAr = getLang(lang) === "ar";
   const deadline = slaDeadline(report.created_at, report.category);
   const ms = deadline.getTime() - Date.now();
   const overdue = ms < 0;
@@ -120,14 +144,22 @@ export function slaChip(report: ReportResponse) {
   const d = Math.floor(h / 24);
 
   let text: string;
-  if (h >= 24) text = `${d}d ${h % 24}h`;
-  else if (h >= 1) text = `${h}h ${m}m`;
-  else text = `${m}m`;
+  if (isAr) {
+    if (h >= 24) text = `${d} يوم و ${h % 24} ساعة`;
+    else if (h >= 1) text = `${h} ساعة و ${m} دقيقة`;
+    else text = `${m} دقيقة`;
+  } else {
+    if (h >= 24) text = `${d}d ${h % 24}h`;
+    else if (h >= 1) text = `${h}h ${m}m`;
+    else text = `${m}m`;
+  }
 
   return {
     overdue,
     urgent: !overdue && ms < 4 * 3600_000,
-    text: overdue ? `Overdue by ${text}` : `Due in ${text}`,
+    text: isAr
+      ? (overdue ? `متأخر بـ ${text}` : `متبقي ${text}`)
+      : (overdue ? `Overdue by ${text}` : `Due in ${text}`),
   };
 }
 

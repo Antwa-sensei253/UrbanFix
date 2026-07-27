@@ -6,7 +6,8 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
-import { api, type CommunityReportResponse } from "@/lib/api";
+import { useAuth } from "@/lib/auth-context";
+import { api, rolePath, type CommunityReportResponse } from "@/lib/api";
 
 const HeatmapView = React.lazy(() => import("@/components/HeatmapView"));
 
@@ -35,6 +36,21 @@ export const Route = createFileRoute("/")({
 
 function Landing() {
   const { t, dir } = useI18n();
+  const { isAuthenticated, user } = useAuth();
+
+  const getWorkspaceLabel = () => {
+    if (dir === "rtl") {
+      if (user?.role === "governor") return "لوحة تحكم المحافظ";
+      if (user?.role === "manager") return "مساحة عمل مدير الحي";
+      if (user?.role === "technician") return "بوابة الفني الميداني";
+      return "مساحة البلاغات والحساب";
+    }
+    if (user?.role === "governor") return "Governor Admin Console";
+    if (user?.role === "manager") return "District Manager Workspace";
+    if (user?.role === "technician") return "Technician Portal";
+    return "My Profile & Reports";
+  };
+
   return (
     <div className="min-h-screen bg-canvas">
       <SiteHeader />
@@ -85,15 +101,24 @@ function Landing() {
               transition={{ delay: 0.3, duration: 0.5 }}
               className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row"
             >
-              <Button asChild size="lg" className="h-12 px-6 text-base group">
+              <Button asChild size="lg" className="h-12 px-6 text-base group shadow-2xs">
                 <Link to="/reports">
                   {t("hero_cta_report")}
                   <ArrowRight className="ml-1.5 size-4 transition-transform group-hover:translate-x-1" />
                 </Link>
               </Button>
-              <Button asChild size="lg" variant="outline" className="h-12 px-6 text-base">
-                <Link to="/login">{t("hero_cta_signin")}</Link>
-              </Button>
+              {isAuthenticated && user ? (
+                <Button asChild size="lg" variant="outline" className="h-12 px-6 text-base gap-2 font-semibold border-primary/40 text-primary bg-primary/5 hover:bg-primary/15 hover:text-primary shadow-2xs">
+                  <Link to={rolePath(user.role)}>
+                    <ShieldCheck className="size-4 text-primary" />
+                    <span>{getWorkspaceLabel()}</span>
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild size="lg" variant="outline" className="h-12 px-6 text-base">
+                  <Link to="/login">{t("hero_cta_signin")}</Link>
+                </Button>
+              )}
             </motion.div>
             <motion.p
               initial={{ opacity: 0 }}
@@ -101,7 +126,16 @@ function Landing() {
               transition={{ delay: 0.5, duration: 0.5 }}
               className="mt-4 text-xs text-muted-foreground"
             >
-              {t("hero_disclaimer")}
+              {isAuthenticated && user ? (
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center justify-center gap-1.5">
+                  <span className="inline-block size-2 rounded-full bg-emerald-500 animate-ping" />
+                  {dir === "rtl"
+                    ? `مسجل دخول بالفعل باسم: ${user.full_name} (${user.district_name || "المواطن"})`
+                    : `Active Session: Logged in as ${user.full_name} (${user.role.toUpperCase()})`}
+                </span>
+              ) : (
+                t("hero_disclaimer")
+              )}
             </motion.p>
           </div>
 
@@ -247,9 +281,18 @@ function Landing() {
             {t("cta_sub")}
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg" className="h-12 px-6 text-base">
-              <Link to="/register">{t("cta_btn_1")}</Link>
-            </Button>
+            {isAuthenticated && user ? (
+              <Button asChild size="lg" className="h-12 px-6 text-base gap-2 font-semibold shadow-2xs">
+                <Link to={rolePath(user.role)}>
+                  <ShieldCheck className="size-4" />
+                  <span>{getWorkspaceLabel()}</span>
+                </Link>
+              </Button>
+            ) : (
+              <Button asChild size="lg" className="h-12 px-6 text-base">
+                <Link to="/register">{t("cta_btn_1")}</Link>
+              </Button>
+            )}
             <Button asChild size="lg" variant="outline" className="h-12 px-6 text-base bg-transparent hover:bg-muted/50">
               <Link to="/reports">{t("cta_btn_2")}</Link>
             </Button>

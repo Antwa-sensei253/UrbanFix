@@ -24,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "@/components/notification-bell";
+import { LanguageToggle } from "@/components/language-toggle";
 import { useAuth } from "@/lib/auth-context";
 import { useI18n } from "@/lib/i18n";
 import { roleLabel, type BackendRole } from "@/lib/api";
@@ -57,23 +58,6 @@ const ROLE_PILL: Record<RoleId, string> = {
   manager: "bg-amber-50 text-amber-800 border-amber-200",
   governor: "bg-emerald-50 text-emerald-700 border-emerald-200",
 };
-
-function LanguageToggle() {
-  const { lang, toggle } = useI18n();
-  return (
-    <button
-      type="button"
-      onClick={toggle}
-      className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card px-2.5 text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-      aria-label="Toggle language"
-    >
-      <Languages className="size-3.5 text-muted-foreground" />
-      <span className={cn(lang === "en" && "text-primary")}>EN</span>
-      <span className="text-border">/</span>
-      <span className={cn(lang === "ar" && "text-primary")}>AR</span>
-    </button>
-  );
-}
 
 function UserMenu({ role }: { role: RoleId }) {
   const { user, logout } = useAuth();

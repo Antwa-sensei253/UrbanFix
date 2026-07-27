@@ -1,5 +1,6 @@
 import * as React from "react";
-import { CalendarClock, MapPin } from "lucide-react";
+import { CalendarClock, MapPin, Heart } from "lucide-react";
+import { cn } from "@/lib/utils";
 const MapPreview = React.lazy(() => import("@/components/MapPreview"));
 import {
   Dialog,
@@ -19,21 +20,44 @@ import {
   urgencyMeta,
 } from "@/lib/reports-data";
 import type { ReportResponse } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export function ReportDetailsDialog({
   report,
   open,
   onOpenChange,
+  onUpvote,
 }: {
   report: ReportResponse | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  onUpvote?: (id: number) => void;
 }) {
+  const { t, lang } = useI18n();
+  const [upvoted, setUpvoted] = React.useState(report?.has_upvoted ?? false);
+  const [count, setCount] = React.useState(report?.upvote_count ?? 0);
+
+  React.useEffect(() => {
+    if (report) {
+      setUpvoted(report.has_upvoted);
+      setCount(report.upvote_count);
+    }
+  }, [report]);
+
+  function toggle() {
+    if (!report) return;
+    setUpvoted((prev) => {
+      setCount((c) => c + (prev ? -1 : 1));
+      return !prev;
+    });
+    onUpvote?.(report.id);
+  }
+
   if (!report) return null;
-  const cat = categoryMeta(report.category);
+  const cat = categoryMeta(report.category, lang);
   const status = normalizeStatus(report.status);
-  const s = statusMeta(status);
-  const u = urgencyMeta(normalizeUrgency(report.urgency));
+  const s = statusMeta(status, lang);
+  const u = urgencyMeta(normalizeUrgency(report.urgency), lang);
   const deadline = slaDeadline(report.created_at, report.category);
   const overdue =
     deadline.getTime() < Date.now() && status !== "resolved" && status !== "rejected";
@@ -59,12 +83,43 @@ export function ReportDetailsDialog({
           </div>
         </div>
         <div className="space-y-5 p-6">
-          <DialogHeader className="space-y-1 text-left">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span>{cat.emoji}</span>
-              <span className="font-medium text-foreground">{cat.label}</span>
-              <span>·</span>
-              <span>#{report.id}</span>
+          <DialogHeader className="space-y-2 text-left">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <span>{cat.emoji}</span>
+                <span className="font-medium text-foreground">{cat.label}</span>
+                <span>·</span>
+                <span>#{report.id}</span>
+                {report.citizen_name && (
+                  <>
+                    <span>·</span>
+                    <span>{t("hub_by")} {report.citizen_name}</span>
+                  </>
+                )}
+              </div>
+              {onUpvote && (
+                <button
+                  type="button"
+                  onClick={toggle}
+                  aria-pressed={upvoted}
+                  className={cn(
+                    "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all active:scale-95 shadow-2xs hover:shadow-xs",
+                    upvoted
+                      ? "border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-400"
+                      : "border-border bg-card text-muted-foreground hover:bg-secondary hover:text-foreground",
+                  )}
+                >
+                  <Heart
+                    className={cn(
+                      "size-3.5 transition-transform duration-200",
+                      upvoted ? "fill-rose-500 text-rose-500 scale-110" : "text-muted-foreground"
+                    )}
+                    strokeWidth={2}
+                  />
+                  <span>{count}</span>
+                  <span className="ml-0.5">{upvoted ? t("hub_liked") : t("hub_like")}</span>
+                </button>
+              )}
             </div>
             <DialogTitle className="text-xl font-semibold tracking-tight">
               {report.description.split("\n")[0].slice(0, 90) ||

@@ -18,11 +18,14 @@ L.Icon.Default.mergeOptions({
 export default function MapPreview({ lat, lng, height = "h-32" }: { lat: number; lng: number; height?: string }) {
   if (!lat || !lng) return null;
   return (
-    <div className={`mt-2 ${height} w-full overflow-hidden rounded-md border`}>
+    <div
+      className={`mt-2 ${height} w-full overflow-hidden rounded-md border relative isolate z-0`}
+      style={{ isolation: "isolate", zIndex: 0 }}
+    >
       <MapContainer 
         center={[lat, lng]} 
         zoom={15} 
-        style={{ height: "100%", width: "100%" }} 
+        style={{ height: "100%", width: "100%", zIndex: 0 }} 
         attributionControl={false}
       >
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />

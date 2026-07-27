@@ -1,10 +1,15 @@
-import { Link } from "@tanstack/react-router";
-import { Globe, MapPin } from "lucide-react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { MapPin, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/lib/i18n";
+import { useAuth } from "@/lib/auth-context";
+import { rolePath } from "@/lib/api";
+import { LanguageToggle } from "@/components/language-toggle";
 
 export function SiteHeader() {
   const { t, toggle, lang } = useI18n();
+  const { isAuthenticated, user, logout } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/70">
@@ -38,22 +43,38 @@ export function SiteHeader() {
           </Link>
         </nav>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={toggle}
-            className="gap-1.5 font-semibold"
-            title="Switch Language / تغيير اللغة"
-          >
-            <Globe className="size-4" />
-            {lang === "en" ? "EN" : "ع"}
-          </Button>
-          <Button asChild variant="ghost" size="sm">
-            <Link to="/login">{t("nav_sign_in")}</Link>
-          </Button>
-          <Button asChild size="sm">
-            <Link to="/register">{t("nav_get_started")}</Link>
-          </Button>
+          <LanguageToggle />
+          {isAuthenticated && user ? (
+            <>
+              <Button asChild size="sm" className="gap-1.5 shadow-2xs font-medium">
+                <Link to={rolePath(user.role)}>
+                  <User className="size-3.5" />
+                  <span>{user.full_name}</span>
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  logout();
+                  navigate({ to: "/login" });
+                }}
+                title="Sign out / تسجيل خروج"
+              >
+                <LogOut className="size-4" />
+                <span className="hidden sm:inline">{t("nav.signOut")}</span>
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/login">{t("nav_sign_in")}</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link to="/register">{t("nav_get_started")}</Link>
+              </Button>
+            </>
+          )}
         </div>
       </div>
     </header>

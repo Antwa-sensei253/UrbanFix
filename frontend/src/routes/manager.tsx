@@ -10,6 +10,7 @@ import {
   RefreshCw,
   Filter as FilterIcon,
   Loader2,
+  Globe,
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { PageShell } from "@/components/page-shell";
@@ -49,8 +50,10 @@ import {
   type TechnicianResponse,
 } from "@/lib/api";
 import { normalizeStatus } from "@/lib/reports-data";
+import { useAuth } from "@/lib/auth-context";
 
 const HeatmapView = React.lazy(() => import("@/components/HeatmapView"));
+const DistrictBoundaryMap = React.lazy(() => import("@/components/DistrictBoundaryMap"));
 
 export const Route = createFileRoute("/manager")({
   component: () => (
@@ -80,6 +83,7 @@ const STATUS_FILTERS: { id: "all" | WorkflowStatus; label: string }[] = [
 
 function ManagerWorkspace() {
   const qc = useQueryClient();
+  const { user } = useAuth();
   const reportsQuery = useQuery({
     queryKey: ["reports", "manager"],
     queryFn: () => api.reports.all(),
@@ -89,7 +93,28 @@ function ManagerWorkspace() {
     queryKey: ["technicians"],
     queryFn: () => api.users.technicians(),
   });
+  const districtsQuery = useQuery({
+    queryKey: ["districts"],
+    queryFn: () => api.admin.districts(),
+  });
 
+  const myDistrict = useMemo(() => {
+    const all = districtsQuery.data ?? [];
+    if (user?.district_name) {
+      const found = all.find((d) => d.name === user.district_name);
+      if (found) return found;
+    }
+    return all.find((d) => d.name === "Nasr City") ?? all[0] ?? {
+      id: 2,
+      name: "Nasr City",
+      latitude: 30.0561,
+      longitude: 31.3301,
+      radius_km: 8.0,
+      boundaries_description: "Eastern residential & administrative sector spanning from Stadium road to 10th of Ramadan junction."
+    };
+  }, [districtsQuery.data, user]);
+
+  const [showBoundaryMap, setShowBoundaryMap] = useState(false);
   const [statusFilter, setStatusFilter] = useState<"all" | WorkflowStatus>("all");
   const [catFilter, setCatFilter] = useState<string>("all");
   const [techFilter, setTechFilter] = useState<string>("all");
@@ -184,6 +209,82 @@ function ManagerWorkspace() {
             <RefreshCw className="size-3" />
             Auto-refresh · last updated {lastRefresh.toLocaleTimeString()}
           </span>
+        </div>
+
+        {/* Operational Boundary & Coverage Card */}
+        <div className="mb-5 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-r from-primary/10 via-card to-card p-5 shadow-2xs">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="inline-flex items-center gap-2">
+                <span className="flex size-6 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                  <MapPin className="size-3.5" />
+                </span>
+                <h2 className="text-base font-bold tracking-tight text-foreground">
+                  {myDistrict.name} District — Operational & Surveillance Boundary
+                </h2>
+                <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  Active Jurisdiction
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <strong className="text-foreground font-semibold">Defined Perimeter: </strong> 
+                {myDistrict.boundaries_description || "Municipal district surveillance zone assigned by Governor."}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 border-t md:border-t-0 md:border-l border-border/60 pt-3 md:pt-0 md:pl-6 text-xs">
+              <div className="bg-canvas/60 rounded-lg px-3.5 py-2 border border-border/50">
+                <div className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">Coverage Radius</div>
+                <div className="text-sm font-bold text-foreground mt-0.5 flex items-center gap-1">
+                  <span>{myDistrict.radius_km ?? 5} km</span>
+                  <span className="text-xs text-muted-foreground font-normal">
+                    (~{Math.round(Math.PI * Math.pow(myDistrict.radius_km ?? 5, 2))} km² area)
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-canvas/60 rounded-lg px-3.5 py-2 border border-border/50">
+                <div className="text-muted-foreground text-[10px] font-medium uppercase tracking-wider">GPS Center Code</div>
+                <div className="text-sm font-mono font-bold text-primary mt-0.5">
+                  {myDistrict.latitude?.toFixed(4) ?? "30.0561"}° N, {myDistrict.longitude?.toFixed(4) ?? "31.3301"}° E
+                </div>
+              </div>
+
+              <Button
+                variant={showBoundaryMap ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setShowBoundaryMap((v) => !v)}
+                className="h-10 px-3.5 gap-1.5 font-semibold shadow-2xs border-primary/30"
+              >
+                <Globe className="size-3.5 text-primary" />
+                {showBoundaryMap ? "Hide Jurisdiction Map" : "View Surveillance Perimeter"}
+              </Button>
+            </div>
+          </div>
+
+          {showBoundaryMap && (
+            <div className="mt-4 pt-4 border-t border-border/60">
+              <div className="flex items-center justify-between mb-2 text-xs">
+                <span className="font-semibold text-foreground">
+                  Operational Surveillance Zone — Assigned by Governor ({myDistrict.radius_km ?? 5.0} km Radius)
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  Reports inside this boundary fall directly under your administrative triage.
+                </span>
+              </div>
+              <React.Suspense fallback={<div className="h-[260px] w-full animate-pulse bg-secondary/50 rounded-xl border border-border" />}>
+                <DistrictBoundaryMap
+                  lat={myDistrict.latitude ?? 30.0561}
+                  lng={myDistrict.longitude ?? 31.3301}
+                  radiusKm={myDistrict.radius_km ?? 5.0}
+                  name={myDistrict.name}
+                  height="h-[260px]"
+                  interactive={false}
+                  otherDistricts={districtsQuery.data ?? []}
+                />
+              </React.Suspense>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 lg:grid-cols-5">

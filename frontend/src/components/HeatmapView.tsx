@@ -9,8 +9,11 @@ export default function HeatmapView({ reports }: { reports: any[] }) {
   const centerLng = mapData.length > 0 ? mapData[0].longitude : 31.2357;
 
   return (
-    <div className="h-[600px] w-full rounded-md border overflow-hidden">
-      <MapContainer center={[centerLat, centerLng]} zoom={12} style={{ height: "100%", width: "100%" }}>
+    <div
+      className="h-[600px] w-full rounded-md border overflow-hidden relative isolate z-0"
+      style={{ isolation: "isolate", zIndex: 0 }}
+    >
+      <MapContainer center={[centerLat, centerLng]} zoom={12} style={{ height: "100%", width: "100%", zIndex: 0 }}>
         <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {mapData.map(r => {
           let colorClass = "bg-red-500"; // Default: Critical/New
