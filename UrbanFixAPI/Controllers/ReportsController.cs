@@ -517,17 +517,55 @@ public class ReportsController : BaseController
             .Select(u => u.ReportId)
             .ToHashSetAsync();
 
-        var result = reports.Select(r => new CommunityReportResponse(
-            r.Id,
-            r.Category,
-            r.Urgency,
-            r.Status,
-            r.AddressDescription,
-            r.PhotoUrl,
-            r.Description,
-            r.CreatedAt,
+        var result = reports.Select(r => MapToResponse(
+            r,
             upvoteCounts.GetValueOrDefault(r.Id, 0),
             upvotedByMe.Contains(r.Id)
+        ));
+
+        return Ok(result);
+    }
+
+    // ─────────────────────────────────────────────
+    // Liked / Upvoted Reports Feed
+    // ─────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns reports that the currently authenticated citizen has liked/upvoted.
+    /// </summary>
+    [HttpGet("upvoted")]
+    [HttpGet("liked")]
+    public async Task<IActionResult> GetUpvoted()
+    {
+        if (GetClaim("role") != "Citizen") return Forbid();
+        var userId = int.Parse(GetClaim("user_id"));
+
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null) return Unauthorized();
+
+        var upvotedReportIds = await _context.Upvotes
+            .Where(u => u.UserId == userId)
+            .Select(u => u.ReportId)
+            .ToListAsync();
+
+        var reports = await _context.Reports
+            .Where(r => upvotedReportIds.Contains(r.Id) && r.IsPublic)
+            .Include(r => r.Citizen)
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+
+        var reportIds = reports.Select(r => r.Id).ToList();
+
+        var upvoteCounts = await _context.Upvotes
+            .Where(u => reportIds.Contains(u.ReportId))
+            .GroupBy(u => u.ReportId)
+            .Select(g => new { ReportId = g.Key, Count = g.Count() })
+            .ToDictionaryAsync(x => x.ReportId, x => x.Count);
+
+        var result = reports.Select(r => MapToResponse(
+            r,
+            upvoteCounts.GetValueOrDefault(r.Id, 0),
+            true
         ));
 
         return Ok(result);

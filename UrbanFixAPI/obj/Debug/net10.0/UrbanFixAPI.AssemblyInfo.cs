@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("UrbanFixAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+023eee6ea6c63c0f9ddb23d85ec2d9ab9e277b4f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7d30ca27a06ff293bbe68f68fec24ec551c8aab7")]
 [assembly: System.Reflection.AssemblyProductAttribute("UrbanFixAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("UrbanFixAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
